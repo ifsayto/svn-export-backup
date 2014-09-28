@@ -1,9 +1,11 @@
 require("xstr")
+--url = require('url')
 local uc = require("yl.urlcode")
+local fs = require"yl.fs"
 
-svnpath=""
-svnuser="user_xxx"
-svnpsw="psw_xxx"
+svnpath="" --"https://svn02/vc/chd_dev_share"--"https://svn02/vc/social_card_game"--"https://svn02/vc/order_and_chaos_2_ios"
+svnuser="wenhui.zhu@gameloft.com"
+svnpsw="Er201408"
 rnew="head"
 rold=0
 
@@ -19,7 +21,7 @@ function write_cfg()
 	local file = io.open("svn.cfg","w")
 	if file then
 		file:write(svnpath.."\n")
-		file:write(rold.."\n")
+		file:write(rnew.."\n")
 		file:close()
 	end
 end
@@ -107,36 +109,55 @@ function export_diff_files3()
 	diff=io.open('diff.txt','r')
 	print("retrive svn diff files ...")
 	local res_list = {}
+	local all_num = 0
 	for line in diff:lines() do
 		local pos = string.find(line, "tags")
 		if pos==nil then
 			res_list = {next = res_list,value = line}
+			all_num = all_num+1
 		end
 	end
 	local l = res_list
-	local ttt = io.open("ttt.txt","w")
+
+	print("export....................")
+	local ttt = io.open("svn.log","w+")
+
+	local index = 1
 	while l do
 		--print(l.value)
 		local elem = string.split(l.value, " ")
 		if not elem[2] then break end
+		local operate = elem[1]
+		local url = elem[2]
 		--print(elem[2])
-		local pos = string.find(elem[2], "tags")
-		if "D"==elem[1] then
-			print(l.value)
-		elseif pos == nil then
-			local url = elem[2]
-			local tmp = string.gsub(elem[2], svnpath, ".")
-			print(tmp)
-			local local_path = stripfilename(tmp)
-			print(local_path)
-			if local_path then
-				local_path = uc.de(local_path)
-			else
-				local_path = uc.de(tmp)
+		local pos = string.find(url, "tags")
+		if "D"==operate then
+			print(index.."/"..all_num)
+			--print(l.value)
+			local tmp = string.gsub(url, svnpath, ".")
+			local local_path = uc.de(tmp)
+			print("D", local_path)
+			ttt:write("D   "..local_path.."\n")
+
+			fs.remove(local_path)
+		elseif pos == nil  then --and pos2==nil
+
+			local tmp = string.gsub(url, svnpath, ".")
+			local local_path = uc.de(tmp)
+			local exist = io.open(local_path)
+			if nil==exist or "M"==operate then
+				if exist then
+					--print("c", operate, local_path)
+					--ttt:write("c   "..operate.."   "..local_path.."\n")
+					exist:close()
+				end
+				--print(url)
+				ttt:write(index.."/"..all_num.."   "..operate.."   "..local_path.."\n")
+				print(index.."/"..all_num, operate, local_path)
+				cmd2 = "svn export --depth files --force --username "..svnuser.." --password "..svnpsw.." --ignore-externals \""..url.."\" \""..local_path.."\""
+				os.execute(cmd2)
 			end
-			print(local_path)
-			cmd2 = "svn export --depth files --force --username "..svnuser.." --password "..svnpsw.." --ignore-externals \""..url.."\" \""..local_path.."\""
-			os.execute(cmd2)
+			index = index+1
 		end
 		l = l.next
 	end
@@ -180,11 +201,8 @@ else
 	retrieve_last()
 	read_new()
 	print("old: r"..rold, "new: r"..rnew)
-	--retrieve_diff_files()
-	--export_diff_files()
+	retrieve_diff_files()
 	export_diff_files3()
-	--retrieve_diff_files2()
-	--export_diff_files2()
 end
 
 os.execute("rm rnew.txt")
