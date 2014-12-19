@@ -1,18 +1,19 @@
 require("xstr")
---url = require('url')
 local uc = require("yl.urlcode")
 local fs = require"yl.fs"
 
-svnpath="" --"https://svn02/vc/chd_dev_share"--"https://svn02/vc/social_card_game"--"https://svn02/vc/order_and_chaos_2_ios"
-svnuser="wenhui.zhu@gameloft.com"
-svnpsw="Er201408"
-rnew="head"
+svnpath=""
+svnuser=""
+svnpsw=""
+rnew=0
 rold=0
 
 function read_cfg()
 	local file = io.open("svn.cfg")
 	if file then
 		svnpath = file:read("*line")
+		svnuser = file:read("*line")
+		svnpsw = file:read("*line")
 		rold = file:read("*number")
 		file:close()
 	end
@@ -21,6 +22,8 @@ function write_cfg()
 	local file = io.open("svn.cfg","w")
 	if file then
 		file:write(svnpath.."\n")
+		file:write(svnuser.."\n")
+		file:write(svnpsw.."\n")
 		file:write(rnew.."\n")
 		file:close()
 	end
@@ -30,9 +33,7 @@ function retrieve_last()
 	print("retrieve last svn log ...")
 	cmd = "svn log -l 1 "..svnpath.." --username "..svnuser.." --password "..svnpsw.." > rnew.txt"
 	os.execute(cmd)
-end
 
-function read_new()
 	file = io.open("rnew.txt")
 	while true do
 		local line = file:read("*line")
@@ -44,6 +45,7 @@ function read_new()
 		end
 	end
 	file:close()
+	os.execute("rm rnew.txt")
 end
 
 
@@ -194,20 +196,17 @@ end
 print("exoprt "..svnpath.." begin")
 read_cfg()
 
+retrieve_last()
+print("old: r"..rold, "new: r"..rnew)
+
 if rold==0 then
-	print("old: r"..rold, "new: r"..rnew)
 	export_first()
-else
-	retrieve_last()
-	read_new()
-	print("old: r"..rold, "new: r"..rnew)
+elseif tonumber(rold)<tonumber(rnew) then
 	retrieve_diff_files()
 	export_diff_files3()
 end
 
-os.execute("rm rnew.txt")
-
 write_cfg()
 print("export end")
 
-io.read("*line")
+--io.read("*line")
